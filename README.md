@@ -1,14 +1,9 @@
-# iit414w-lab01-group18
-Aquí tienes el **README (Reproducibility Runbook)** estructurado para tu Lab 1, siguiendo el formato profesional solicitado y adaptado a los problemas y herramientas específicos que hemos trabajado (FastF1, Jolpica y el análisis de 2022-2024).
-
----
-
 # Reproducibility Runbook - Lab 1
 
 ### (a) Header
 
 * **Members:** Alonso Cárdenas, Benjamín Sánchez
-* **Date:** 15 March 2026
+* **Date:** March 15, 2026
 
 ### (b) System Info
 
@@ -18,17 +13,17 @@ Aquí tienes el **README (Reproducibility Runbook)** estructurado para tu Lab 1,
 
 ### (c) Setup Instructions
 
-Para recrear el entorno exacto utilizado en este análisis, siga estos pasos:
+To recreate the exact environment used for this analysis, please follow these steps:
 
-1. **Clonar el repositorio y navegar al directorio:**
+1. **Clone the repository and navigate to the directory:**
 ```bash
-git clone [URL_DE_TU_REPOSITORIO]
-cd [NOMBRE_DE_TU_CARPETA]
+git clone [YOUR_REPOSITORY_URL]
+cd [YOUR_FOLDER_NAME]
 
 ```
 
 
-2. **Si utiliza Conda (Recomendado):** Cree el entorno desde el archivo `environment.yml` provisto:
+2. **If using Conda (Recommended):** Create the environment using the provided `environment.yml` file:
 ```bash
 conda env create -f environment.yml
 conda activate iit414w_lab1
@@ -36,7 +31,7 @@ conda activate iit414w_lab1
 ```
 
 
-3. **Lanzar Jupyter Lab:**
+3. **Launch Jupyter Lab:**
 ```bash
 jupyter lab
 
@@ -44,7 +39,7 @@ jupyter lab
 
 
 
-*(Alternativa usando venv estándar)*:
+*(Alternative using standard Python venv)*:
 
 ```bash
 python -m venv f1_env
@@ -55,34 +50,30 @@ pip install pandas seaborn matplotlib fastf1 requests scikit-learn
 
 ### (d) How to run
 
-1. **Orden de ejecución:** Ejecute el notebook principal de arriba hacia abajo (`Kernel -> Restart & Run All Cells`).
-2. **Configuración de Cache:** Asegúrese de que la celda que habilita `fastf1.Cache` tenga permisos de escritura en el directorio local.
-3. **Dependencias:** No ignore las celdas iniciales de importación de librerías, ya que configuran los estilos de `seaborn` necesarios para visualizar correctamente los gráficos KDE y los histogramas de la Sección 3.3.
+1. **Execution Order:** Run the main notebook from top to bottom (`Kernel -> Restart & Run All Cells`).
+2. **Cache Configuration:** Ensure the cell that enables `fastf1.Cache` has write permissions in the local directory to store race telemetry.
+3. **Dependencies:** Do not skip the initial library import cells, as they configure the `seaborn` styles and matplotlib parameters required to correctly render the KDE plots and histograms in Section 3.3.
 
 ### (e) Problems encountered
 
-Aquí se detallan dos problemas técnicos encontrados durante el EDA y su solución:
+Here are two technical issues encountered during the EDA and their respective solutions:
 
-1. **Inconsistencia en tipos de datos al unir (Merge) fuentes:**
-* **Problema:** Al intentar cruzar datos de la API de Jolpica con FastF1, el `DriverNumber` se cargaba como `float` en un set y como `object` (string) en otro, causando que el merge resultara en un DataFrame vacío.
-* **Solución:** Utilicé `.astype(int)` en ambas columnas antes del merge para asegurar la integridad referencial.
+1. **Data Type Mismatch during Merging:**
+* **Problem:** When joining Jolpica API data with FastF1 results, the `DriverNumber` was loaded as a `float` in one set and as an `object` (string) in the other, causing the merge to return an empty DataFrame.
+* **Solution:** I applied `.astype(int)` to both columns prior to the merge to ensure referential integrity and successful matching.
 
 
-2. **Sesgo por Abandonos (DNF) en el cálculo de IsTop10:**
-* **Problema:** Inicialmente, los pilotos que no terminaron la carrera aparecían con valores nulos en la posición final, lo que hacía que no fueran contabilizados ni como éxito ni como fracaso.
-* **Solución:** Implementé una lógica de limpieza donde cualquier `Status` distinto de 'Finished' o '+n Laps' (indicando DNF o DSQ) se mapea automáticamente a `IsTop10 = 0`, evitando el sesgo de supervivencia en los datos.
+2. **Survivorship Bias in IsTop10 Construction:**
+* **Problem:** Initially, drivers who did not finish the race appeared with null values in the final position field, which meant they were being excluded from both success and failure counts.
+* **Solution:** I implemented a cleanup logic where any `Status` other than 'Finished' or '+n Laps' (indicating a DNF or DSQ) is automatically mapped to `IsTop10 = 0`, preventing survivorship bias and accurately reflecting race risk.
 
 
 
 ### (f) Expected outputs
 
-Al ejecutar el notebook exitosamente, debería observar lo siguiente:
+Upon a successful run, you should observe the following:
 
-1. **Análisis de Balance (3.2):** Un gráfico de barras mostrando una distribución casi perfecta de 50% (680) para la clase `1` y 50% (679) para la clase `0`.
-2. **Patrón Temporal (3.3):** Un gráfico de densidad (KDE) que compare 2022 vs 2024, mostrando que en 2024 la densidad de éxito se concentra más fuertemente en el Top 5 de la parrilla.
-3. **Matriz de Correlación (3.4):** Un Heatmap donde `GridPosition` muestre una correlación negativa fuerte (aprox. $-0.82$) con `IsTop10`.
-4. **Resumen 1-3-1 (3.8):** Una celda de Markdown final con la estructura "1 Most Important Finding, 3 Key Insights, 1 Recommendation".
-
----
-
-**¿Hay algún otro detalle de tu configuración que te gustaría agregar o estamos listos para cerrar el Lab?**
+1. **Class Balance Analysis (3.2):** A count plot showing an almost perfect 50/50 distribution (680 for class `1` vs. 679 for class `0`).
+2. **Temporal Pattern Analysis (3.3):** A Kernel Density Estimate (KDE) plot comparing 2022 vs. 2024, showing that in 2024, the density of successful outcomes is more tightly concentrated within the Top 5 grid positions.
+3. **Correlation Matrix (3.4):** A Heatmap where `GridPosition` displays a strong negative correlation (approx. $-0.82$) with the `IsTop10` target.
+4. **1-3-1 Summary (3.8):** A final Markdown cell following the "1 Most Important Finding, 3 Key Insights, 1 Recommendation" structure.
