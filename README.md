@@ -3,7 +3,6 @@
 ### (a) Header
 
 * **Members:** Alonso Cárdenas, Benjamín Sánchez
-* **Date:** March 15, 2026
 
 ### (b) System Info
 
