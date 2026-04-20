@@ -5,7 +5,6 @@ This repository contains the deliverables for Lab 3, comparing predictive models
 ## Structure
 - `data/`: Contains the `jolpica_results_2018_2024.csv` dataset.
 - `lab3_model_comparison.ipynb`: The main notebook containing the modeling steps.
-- `compute_metrics.py`: Script to extract metrics directly into CLI.
 - `framing_decision.md`: Justification of business logic and model framing.
 - `comparison_table.md`: Results matrix comparing Train and Test Macro F1.
 - `memo.md`: Non-technical executive summary.
