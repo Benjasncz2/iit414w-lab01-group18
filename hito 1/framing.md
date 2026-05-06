@@ -1,139 +1,98 @@
-# Hito 1 — Problem Framing Document
+# Team Decision Sheet — Capstone Hito 1
+**IIT414W · F1 Race Strategy Advisor · Mon May 4, 2026**
 
-**Team:** Group 18 — F1 Strategy Advisor  
-**Members:** Alonso Cárdenas, Benjamín Sánchez  
-**Repository:** https://github.com/Benjasncz2/iit414w-lab01-group18  
-**Date:** May 6, 2026
-
----
+**Team name:** Group 18 — F1 Strategy Advisor  
+**Team members:** Alonso Cárdenas, Benjamín Sánchez  
+**GitHub repo URL:** https://github.com/Benjasncz2/iit414w-lab01-group18  
 
 ## 1. Decision Context
+**What strategy decision is this tool supporting?**  
+Whether a driver is expected to score championship points (finish Top 10) given their qualifying grid position and constructor history, so the strategy desk can decide how aggressively to race on Sunday.
 
-**What strategy decision is this tool supporting?**
-
-Whether a driver is expected to finish in the Top 10 (score championship points) given pre-race information and scenario strategy inputs, so the strategy desk can evaluate different pit-stop strategies before the race starts.
-
-**Who makes this decision?**
-
+**Who makes this decision?**  
 The race strategy desk on the pit wall, during the Friday evening debrief after FP2 and qualifying simulations.
 
-**When in the race weekend is the decision made?**
+**When in the race weekend is the decision made?**  
+Friday evening, after FP2, before parc fermé conditions lock the car setup, using only pre-race information available at that moment.
 
-Friday evening, after FP2 and before parc fermé conditions lock the car setup. The tool receives pre-race features (grid position, constructor tier) as fixed inputs and strategy features (n_stops, compound_sequence) as user-controlled scenario inputs to compare "what if" alternatives.
+## 2. Target & Metric
+**Target:** is_top10
 
-**Prediction unit:** One driver × one race (driver-race level).
+**Primary metric:** Brier Score  
+**Why this metric for this decision?** Brier score measures the accuracy of calibrated probability estimates, which is what matters for a scenario comparison tool — the strategy desk needs P(top10) = 0.73 vs P(top10) = 0.61, not just a ranking. 
 
----
+**Secondary metrics:** Macro F1-Score (retained as a secondary metric for interpretability), ROC-AUC, and log loss.
 
-## 2. Target & Primary Metric
-
-**Target (LOCKED):** `is_top10` — binary indicator of whether the driver finishes in positions 1–10 and scores championship points.
-
-**Primary metric:** Brier Score (lower is better).
-
-**Why Brier for this decision?** The strategy desk needs *calibrated probabilities* to compare scenario outcomes, not just a classification label. Brier score directly penalizes poorly calibrated probability forecasts: a model that predicts P(top10) = 0.80 should be correct 80% of the time. Unlike log loss, Brier is bounded [0, 1] and interpretable in absolute terms; unlike Macro F1, it evaluates the quality of the probability output itself, which is the input to the what-if comparison tool.
-
-**Secondary metrics:** ROC-AUC (discrimination ability), log loss (for comparison with docent baseline), calibration curve visual.
-
-**Temporal split (LOCKED):**
-
-| Block       | Seasons       | Use                                                      |
-|-------------|---------------|----------------------------------------------------------|
-| Train       | 2019–2021     | Fit the model                                            |
-| Calibration | 2022          | Fit calibration mapping (isotonic). Never for model selection. |
-| Test        | 2023–2024     | Untouched until final evaluation. Look at it once.        |
-
----
+**Temporal split:**
+* Train: seasons 2019, 2020, 2021
+* Calibration: season 2022 (used to fit calibration mapping; never for model selection)
+* Test: seasons 2023, 2024 (untouched until final evaluation)
 
 ## 3. Baseline Plan
+**Baseline approach:**  
+Logistic regression on grid_position (pit-lane starts mapped to 20) + constructor_tier (top/mid/back, derived from prior-season constructor standings) + n_stops, trained on 2019–2021 and calibrated on 2022.
 
-**Baseline approach:** Logistic regression with three features — `grid_position` (pit-lane starts mapped to 20), `constructor_tier` (front / midfield / backmarker, derived from the dataset's existing encoding), and `n_stops` (scenario input). Trained on 2019–2021, calibrated with `CalibratedClassifierCV(cv="prefit", method="isotonic")` on 2022, evaluated on 2023–2024.
+**Why is this baseline F1-defendable?**  
+Grid position has a Spearman ρ ≈ −0.82 correlation with is_top10 confirmed in our Lab 1 EDA, constructor tier captures structural car competitiveness known before the race, and n_stops is a declared pre-race strategy input — all three features are fully available before the formation lap with zero leakage risk.
 
-**Why is this baseline F1-defendable?** Grid position has a strong monotonic relationship with finishing position (Spearman ρ ≈ −0.82 confirmed in Lab 1 EDA), constructor tier captures structural car competitiveness known before the race, and `n_stops` is a declared pre-race strategy input — all three features are available before the formation lap with zero leakage risk. This baseline can be justified entirely from F1 domain knowledge without ever seeing 2023–2024 data.
+n_stops, compound_sequence, and stint_lengths are post-race observations in the raw dataset. In any standard modeling context they would constitute target leakage. In this capstone they are intentionally included as user-controlled scenario inputs — the model user sets these values to simulate a strategy decision before the race. This distinction is declared explicitly and applies to all experiments in this project.
 
-**Direction check:** Yes — higher baseline score means higher predicted P(top10). A driver starting P1 in a front-tier constructor with a 1-stop strategy will receive P(is_top10) ≈ 0.95.
+**Direction check: higher baseline score means higher predicted P(top10):**  
+Yes — a driver starting P1 in a top-tier constructor declaring a 1-stop strategy will receive a predicted P(is_top10) close to 1.0; the model score increases monotonically as grid position improves and constructor tier rises.
 
 **Expected baseline performance vs docent floor:**
-
-| Reference                | Brier (test) | ROC-AUC (test) |
-|--------------------------|-------------|----------------|
-| Grid-rule docent baseline | 0.208       | —              |
-| Calibrated docent model   | 0.132       | 0.892          |
-| Our team target           | 0.130–0.150 | 0.880–0.900    |
-
----
+* Grid-rule docent baseline: Brier = 0.208 on test
+* Calibrated docent model: Brier = 0.132 on test, ROC-AUC = 0.892
+* Our team's best baseline expected to land near: Brier = 0.150 (our Lab 3 Logistic Regression achieved Macro F1 = 0.818 on a comparable holdout; adding calibration on 2022 and constructor_tier should bring Brier below the grid-rule floor of 0.208 while landing above the fully-calibrated docent model at 0.132)
 
 ## 4. What-If Comparison Plan
+**Strategy variables we will vary:**
+* n_stops
+* compound_sequence
+* stint_lengths (or stint1_length, stint2_length, etc.)
+* avg_pit_stop_duration_s
 
-**Strategy variables we will vary:** `n_stops`, `compound_sequence`, `avg_pit_stop_duration_s`.
+**Concrete scenarios to compare:**
+* **Scenario A (Conservative 1-stop):** grid_position = 8, constructor_tier = mid, n_stops = 1, compound_sequence = ["Medium", "Hard"], avg_pit_stop_duration_s = 24.0 — standard midfield strategy at a low-degradation circuit.
+* **Scenario B (Aggressive 2-stop):** grid_position = 8, constructor_tier = mid, n_stops = 2, compound_sequence = ["Soft", "Medium", "Soft"], avg_pit_stop_duration_s = 23.5 — same driver and grid slot as Scenario A, taking an extra tire set to attack positions in the second stint.
 
-**Concrete scenarios:**
-
-**Scenario A — Conservative 1-stop at Monza 2024 (LEC, P4, front-tier):**
-- `grid_position = 4`, `constructor_tier = front`, `n_stops = 1`
-- `compound_sequence = "M-H"`, `avg_pit_stop_duration_s = 23.5`
-- Rationale: Low-degradation circuit, protect track position with a single stop.
-
-**Scenario B — Aggressive 2-stop at Monza 2024 (LEC, P4, front-tier):**
-- `grid_position = 4`, `constructor_tier = front`, `n_stops = 2`
-- `compound_sequence = "S-M-H"`, `avg_pit_stop_duration_s = 23.0`
-- Rationale: Attack with fresher tires in the final stint, accepting two pit-lane time penalties.
-
-**Decision metric:** Difference in calibrated P(is_top10) between Scenario A and Scenario B. If |ΔP| < 0.05, the strategy desk should prefer the conservative option to minimize risk.
-
----
+**Decision metric for the comparison:**
+Difference in calibrated P(is_top10) between Scenario A and Scenario B, with bootstrap 90% confidence interval across 1,000 resamples of the 2023–2024 test races.
 
 ## 5. Limitations Acknowledgment
+**Limitation #1 we acknowledge:** Race-day dynamics (mechanical failures, weather, safety cars, collisions) are absent from the feature set.  
+**Why it matters for our approach:** Our model is trained only on pre-race features, so a driver starting P1 who suffers a lap-2 engine failure will still receive P(is_top10) ≈ 0.95 — our Lab 1 DATA_QUALITY_LOG identified this as the primary source of false positives and the reason even a perfect grid-based model carries ~14% irreducible error.
 
-### Limitation 1: Coverage starts in 2019
+**Limitation #2 we acknowledge:** Constructor/team semantic inconsistency across seasons due to rebranding (e.g., AlphaTauri → RB, Racing Point → Aston Martin).  
+**Why it matters for our approach:** Without a harmonization mapping, the model treats rebranded teams as entirely new entities with no performance history, corrupting the constructor_tier feature for those teams across the 2019–2024 training and calibration window.
 
-The dataset begins in 2019, not earlier. This limits the training window to three seasons (2019–2021) with ~60 races, which constrains the model's ability to learn from diverse regulatory eras (e.g., pre-2019 aero rules). **Consequence for our approach:** The small training window increases variance in parameter estimates, particularly for less-represented constructors like Haas and Williams that may have fewer than 20 training observations each.
+**Limitation #3 we acknowledge:** safety_car_periods is a binary indicator per driver-race, not a full race-control interval count.  
+**Why it matters for our approach:** This means our model cannot distinguish a race with one early safety car from one with three late safety cars — both collapse to the same binary signal, understating the variance in race outcomes caused by safety car timing.
 
-### Limitation 2: `qualifying_position` is a stand-in for `grid_position`; `qualifying_time_s` is empty
+## 6. Experiment Plan for Hito 1
+**Three experiments we will run between today and Wednesday 16:20:**
+1. **Baseline Logistic Regression** — fit on 2019–2021 with features grid_position, constructor_tier, n_stops; calibrate with CalibratedClassifierCV(cv="prefit", method="isotonic") on 2022; evaluate Macro F1 and Brier on 2023–2024 test set.
+2. **Constructor encoding comparison** — compare constructor encodings using 3-fold cross-validation on the training set (2019–2021 only) to determine which encoding reduces overfitting on small-N teams like Haas and Williams.
+3. **Strategy what-if sweep** — hold grid_position and constructor_tier fixed at a midfield scenario (P8, mid-tier) and vary n_stops ∈ {1, 2} and compound_sequence across 4 combinations, reporting ΔP(is_top10) with bootstrap 90% CI.
 
-The column `qualifying_time_s` is systematically empty — it was kept for schema consistency but contains no data. `qualifying_position` is a proxy for `grid_position` and does not capture penalties, pit-lane starts, or grid drops applied after qualifying. **Consequence for our approach:** We use `grid_position` directly and never build features around qualifying time. Treating `qualifying_time_s` as a real signal would be a graded error.
-
-### Limitation 3: Strategy features are observed post-race
-
-Features such as `n_stops`, `compound_sequence`, and `stint_lengths` are post-race observations in the raw data. In any predictive course context, using them as predictors would be textbook target leakage.
-
-**For this capstone, they are explicitly allowed as scenario inputs.** The product is a "what-if" comparison tool: the user intentionally sets these variables to compare strategies. The model receives them as user-controlled inputs, not as information magically known before the race.
-
-> **This distinction is a graded item.** We declare it explicitly: strategy features enter the model as scenario parameters controlled by the user, not as pre-race predictions.
-
----
-
-## 6. Experiment Plan for Hito 2
-
-### Experiment 1: Feature expansion with driver-level priors
-
-**Hypothesis:** Adding `driver_prior3_avg_finish` and `constructor_prior3_avg_finish` (3-race rolling averages available pre-race) will reduce Brier by ≥ 0.005 compared to the Hito 1 baseline, because recent form captures momentum effects not encoded in static constructor tier.
-
-**Metric:** Brier score on 2023–2024 test set.
-
-### Experiment 2: Gradient Boosted Trees vs. Logistic Regression
-
-**Hypothesis:** A calibrated LightGBM model with ≤ 10 features will achieve Brier < 0.125 on the test set, outperforming the calibrated logistic regression baseline, because tree-based models can capture non-linear interactions between grid position and strategy choice (e.g., aggressive strategies benefit backmarkers more than front-runners).
-
-**Metric:** Brier score and ROC-AUC on 2023–2024 test set.
-
-### Experiment 3: Circuit-type stratification
-
-**Hypothesis:** Model performance differs across circuit types (permanent vs. street vs. semi-street). The model will have Brier > 0.15 on street circuits vs. < 0.12 on permanent circuits, because street circuits have more safety car interventions and overtaking constraints that our model does not capture.
-
-**Metric:** Brier score stratified by `circuit_type` on 2023–2024 test set.
-
----
+**Hypothesis for each:**
+1. We expect Macro F1 ≈ 0.81–0.83 and Brier ≈ 0.145–0.160, beating the grid-rule docent floor (Brier = 0.208) because calibration on 2022 removes overconfidence near the P10/P11 boundary where the heuristic makes most of its errors.
+2. We expect constructor_tier (3-level) to match or slightly outperform raw constructor_id on Brier, since compressing 10+ sparse one-hot columns into three semantically meaningful groups reduces variance on teams with few historical races in the training window.
+3. We expect ΔP(is_top10) between the 1-stop and 2-stop scenarios to be small (< 0.06) for a P8 mid-tier driver, reflecting that the current model is dominated by grid position — a result that would motivate adding real-time tire degradation features in Hito 2.
 
 ## 7. Team Workflow
+**Who is doing what between now and Wednesday?**
 
-| Member           | Owns                                                               | Branch / File                          |
-|------------------|--------------------------------------------------------------------|----------------------------------------|
-| Alonso Cárdenas  | Data pipeline: temporal split, constructor_tier validation, leakage audit | `hito 1/hito1_baseline.ipynb` (cells 1–4) |
-| Benjamín Sánchez | Baseline model: LogReg + CalibratedClassifierCV, evaluation, comparison table | `hito 1/hito1_baseline.ipynb` (cells 5–10) |
-| Both             | What-if scenarios, framing.md, PROMPTS.md, README.md final review  | `hito 1/framing.md`, `PROMPTS.md`       |
+| Member | Owns | Branch / file in repo |
+| :--- | :--- | :--- |
+| Alonso Cárdenas | Data pipeline: temporal split 2019–2021/2022/2023–2024, constructor_tier harmonization mapping, evaluation harness (Macro F1 + Brier) | `feature/alonso-data-pipeline` / `labs/capstone/data_pipeline.ipynb` |
+| Benjamín Sánchez | Baseline model: LogReg + CalibratedClassifierCV, experiments 1 & 2, comparison table | `feature/benja-baseline-model` / `labs/capstone/baseline_capstone.ipynb` |
+| Both | What-if sweep (Experiment 3), framing.md final review, PROMPTS.md update | `main` after merge / `framing.md`, `PROMPTS.md` |
 
-**Commit schedule:**
-- **Tuesday EOD (23:59):** Alonso → temporal split cells committed; Benjamín → baseline model cells committed.
-- **Wednesday 12:00:** Both → experiment results committed; framing.md updated with actual Brier scores.
-- **Wednesday 15:00:** Final merge to main, PROMPTS.md populated, repo clean for 16:20 submission.
+**When does each member commit by?**
+* Tuesday EOD (23:59): Alonso → data pipeline committed and passing with correct temporal split; Benjamín → baseline model cells 1–8 committed with visible outputs.
+* Wednesday 12:00: Both → experiment results committed; framing.md updated with actual Macro F1 and Brier scores replacing the estimates in Section 3.
+* Wednesday 15:00: Final merge to main, PROMPTS.md populated with ≥3 entries, repo clean for 16:20 review.
+
+## 8. Critique Received in Pair Review
+To be completed during Block 5
