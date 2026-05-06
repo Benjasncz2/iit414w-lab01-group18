@@ -93,6 +93,3 @@ Difference in calibrated P(is_top10) between Scenario A and Scenario B, with boo
 * Tuesday EOD (23:59): Alonso → data pipeline committed and passing with correct temporal split; Benjamín → baseline model cells 1–8 committed with visible outputs.
 * Wednesday 12:00: Both → experiment results committed; framing.md updated with actual Macro F1 and Brier scores replacing the estimates in Section 3.
 * Wednesday 15:00: Final merge to main, PROMPTS.md populated with ≥3 entries, repo clean for 16:20 review.
-
-## 8. Critique Received in Pair Review
-To be completed during Block 5
